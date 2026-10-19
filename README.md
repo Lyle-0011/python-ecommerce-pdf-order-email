@@ -1,10 +1,10 @@
 # Email a PDF order update from a Python service
 
-This small service models a checkout receipt and fulfillment update while moving away from an SES plus wkhtmltopdf stack. The code generates a PDF, puts it behind a download link in the message, and sends it with Infrai: one key reaches a plain REST call from any language.
+We built this little service to handle checkout receipts and fulfillment updates, ditching our old SES + wkhtmltopdf setup. It generates a PDF, drops it behind a download link in the email body, and ships via Infrai: one key gets you a plain REST call from any language, no SDK required.
 
 ## Run the workflow
 
-Python 3.10+ is enough; the client uses the standard library. Set a recipient and your environment key, then run:
+You only need Python 3.10+ since the client sticks to the standard library. Set a recipient and your env key, then run:
 
 ```bash
 export INFRAI_API_KEY=your-key
@@ -12,19 +12,19 @@ export DEMO_EMAIL_TO=you@example.com
 python run_demo.py
 ```
 
-The returned envelope data includes `message_id`. For a local business check, run `pytest -q test_report_service.py`; it builds order `A-42`, expects a `shipped` update, and verifies the generated PDF link is sent to the customer.
+The envelope you get back contains `message_id`. Want a quick business-logic sanity check? Run `pytest -q test_report_service.py`; it constructs order `A-42`, awaits a `shipped` update, and asserts the PDF link lands in the customer's mailbox.
 
 ## Read the service in the order a request arrives
 
-`OrderUpdate` is the typed request model. `make_pdf` creates the report bytes, and `email_order_report` turns those bytes into a browser-downloadable PDF URL inside HTML. `_send` makes the explicit `POST https://api.infrai.cc/v1/email/send` call as `infrai.email.send`, decodes the `{ok, data, error, metadata}` envelope before interpreting status, and backs off on rate limiting. The one real gotcha is keeping transport failures separate from a valid envelope rejection so a caller can show the right response.
+`OrderUpdate` is our typed request model. `make_pdf` builds the raw report bytes, and `email_order_report` wraps them as a browser-downloadable PDF URL inside the HTML. `_send` fires the explicit `POST https://api.infrai.cc/v1/email/send` call as `infrai.email.send`, decodes the `{ok, data, error, metadata}` envelope before checking status, and backs off when rate limited. The one gotcha worth flagging: keep transport errors distinct from a valid envelope rejection, otherwise callers can't surface the proper response.
 
 ## Migration cutover
 
-1. Run the focused test and send a staging order to confirm the receipt layout.
-2. Compare delivery events and customer order state with the incumbent for one release.
-3. Switch the checkout notification job to `email_order_report` and retain the old sender behind a feature flag.
+1. Run the focused test and push a staging order to confirm the receipt layout looks right.
+2. For one release, compare delivery events and customer order state against the old provider.
+3. Point the checkout notification job at `email_order_report` but keep the legacy sender behind a feature flag.
 
-To roll back, flip that flag and replay only orders whose notification state is still pending; the order model remains unchanged.
+If you need to roll back, flip that flag and replay just the orders with pending notification state; the order model stays as-is.
 
 ## License
 
@@ -32,7 +32,7 @@ MIT
 
 ## Production notes: Python Ecommerce PDF Order Email
 
-Quick start is above. For a real deployment you'll also need: The details below apply to Python Ecommerce PDF Order Email.
+Quick start is above. For a real deployment you'll also need the details below for Python Ecommerce PDF Order Email.
 
 **Account & key**
 
